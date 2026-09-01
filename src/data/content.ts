@@ -81,7 +81,7 @@ export const PROJECTS: Project[] = [
   },
   {
     description: 'AI companion apps.',
-    badge: 'public/images/lovetwee_badge.jpg',
+    badge: '/images/lovetwee_badge.jpg',
     href: 'https://www.lovetwee.com/ai-girlfriend',
     index: '03',
     name: 'LoveTwee',

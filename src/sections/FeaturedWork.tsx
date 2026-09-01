@@ -36,9 +36,7 @@ export function FeaturedWork() {
                 >
                   <img
                     src={
-                      project?.badge
-                        ? project.badge
-                        : 'public/images/apple_badge.png'
+                      project?.badge ? project.badge : '/images/apple_badge.png'
                     }
                     alt="Download on the App Store"
                     className="project__badge"
