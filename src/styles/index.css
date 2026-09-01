@@ -1,0 +1,786 @@
+/* ==========================================================================
+   CIHAI · Code Ninja — cinematic profile
+   Dark editorial system: one continuous frame sequence behind real DOM type.
+   ========================================================================== */
+
+:root {
+  --ink: #ffffff;
+  --ink-muted: rgba(255, 255, 255, 0.74);
+  --ink-faint: rgba(255, 255, 255, 0.54);
+  --ink-ghost: rgba(255, 255, 255, 0.18);
+  --bg: #000000;
+
+  --font-display:
+    system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Roboto Mono', monospace;
+
+  --gutter: clamp(1.5rem, 5vw, 6rem);
+  --nav-height: 4.5rem;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  /* The scroll timeline owns the pacing; native smooth scrolling would fight it. */
+  scroll-behavior: auto;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Nothing in this layout may cause a sideways scrollbar. */
+  overflow-x: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Layers
+   -------------------------------------------------------------------------- */
+
+.cinematic-stage {
+  position: relative;
+  width: 100%;
+}
+
+.hero-canvas-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--bg);
+  pointer-events: none;
+}
+
+.hero-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Legibility scrim. Keeps huge white type readable over a busy frame without
+   flattening the image. */
+.hero-canvas-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0) 26%),
+    linear-gradient(to top, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0) 42%),
+    radial-gradient(
+      120% 90% at 50% 50%,
+      rgba(0, 0, 0, 0) 38%,
+      rgba(0, 0, 0, 0.62) 100%
+    );
+}
+
+/* Phase 2 mounts here. Empty and inert in Phase 1. */
+.future-interactive-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.story {
+  position: relative;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 900ms ease 120ms;
+}
+
+.story.is-ready {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Navigation
+   -------------------------------------------------------------------------- */
+
+.site-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  height: var(--nav-height);
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition:
+    opacity 700ms ease,
+    transform 700ms ease;
+  pointer-events: none;
+}
+
+.site-nav.is-visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.site-nav__brand,
+.site-nav__links button {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  transition: color 240ms ease;
+}
+
+.site-nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.site-nav__mark {
+  color: var(--ink);
+  letter-spacing: 0.3em;
+}
+
+.site-nav__divider {
+  color: var(--ink-ghost);
+}
+
+.site-nav__links {
+  display: flex;
+  gap: clamp(1.25rem, 3vw, 2.75rem);
+}
+
+.site-nav__brand:hover,
+.site-nav__links button:hover,
+.site-nav__links button:focus-visible {
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Story sections
+   Heights are explicit so the 483-frame timeline has predictable resolution.
+   Total: 110 + 120 + 120 + 120 + 120 + 100 + 120 + 90 = 900vh
+   -------------------------------------------------------------------------- */
+
+.story-section {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: var(--nav-height) var(--gutter) var(--gutter);
+}
+
+.story-section--hero {
+  height: 110vh;
+  align-items: flex-end;
+  /* The extra 10vh of runway sits below the fold, so pad the copy back up into
+     the first screen - otherwise the support lines and scroll hint are cut off. */
+  padding-bottom: calc(10vh + var(--gutter));
+}
+.story-section--philosophy {
+  height: 120vh;
+}
+.story-section--chapter {
+  height: 120vh;
+}
+.story-section--work-intro {
+  height: 100vh;
+}
+.story-section--work-list {
+  height: 120vh;
+}
+.story-section--footer {
+  height: 90vh;
+  align-items: center;
+}
+
+.story-inner {
+  position: relative;
+  width: min(100%, 46rem);
+  will-change: opacity, transform, filter;
+}
+
+/* Soft, feathered darkening behind the copy so small metadata stays readable no
+   matter how bright the frame underneath happens to be. Fades with the block
+   because it is a child of the animated element. */
+.story-inner::before {
+  content: '';
+  position: absolute;
+  inset: -20% -22%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    72% 62% at 28% 50%,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.62) 42%,
+    rgba(0, 0, 0, 0.28) 68%,
+    rgba(0, 0, 0, 0) 85%
+  );
+}
+
+.align-right .story-inner::before {
+  background: radial-gradient(
+    72% 62% at 72% 50%,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.62) 42%,
+    rgba(0, 0, 0, 0.28) 68%,
+    rgba(0, 0, 0, 0) 85%
+  );
+}
+
+.story-inner--wide {
+  width: min(100%, 56rem);
+}
+
+.story-inner--wide::before {
+  inset: -10% -16%;
+  background: radial-gradient(
+    80% 70% at 40% 50%,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.6) 48%,
+    rgba(0, 0, 0, 0) 88%
+  );
+}
+
+.align-right {
+  justify-content: flex-end;
+}
+
+.align-right .story-inner {
+  text-align: right;
+}
+
+/* --------------------------------------------------------------------------
+   Typography
+   -------------------------------------------------------------------------- */
+
+.meta {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.meta__index {
+  display: inline-block;
+  margin-right: 1rem;
+  color: var(--ink-muted);
+}
+
+.meta--eyebrow {
+  color: var(--ink-muted);
+}
+
+.meta--hint {
+  margin: 3.5rem 0 0;
+  font-size: 0.6rem;
+  letter-spacing: 0.32em;
+}
+
+.meta--date,
+.meta--label {
+  margin: 0;
+}
+
+.meta--copyright {
+  margin: 0;
+  font-size: 0.62rem;
+}
+
+.display {
+  margin: 0;
+  font-weight: 500;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.display--lg {
+  font-size: clamp(3.4rem, 12vw, 11rem);
+  letter-spacing: -0.045em;
+}
+
+.display--md {
+  font-size: clamp(2.2rem, 5.6vw, 4.6rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.display--sm {
+  font-size: clamp(1.9rem, 4vw, 3.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hero ------------------------------------------------------------------- */
+
+.hero-headline {
+  margin: 0;
+  font-size: clamp(2rem, 5.2vw, 4.3rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.032em;
+}
+
+.hero-headline__line {
+  display: block;
+  /* Reserve the line box so the typewriter never reflows the layout below it. */
+  min-height: 1.08em;
+}
+
+.caret {
+  display: inline-block;
+  width: 0.06em;
+  height: 0.86em;
+  margin-left: 0.08em;
+  vertical-align: -0.08em;
+  background: var(--ink);
+  animation: caret-blink 1.05s steps(1, end) infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.hero-support {
+  margin-top: 2.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 2rem;
+}
+
+.hero-support p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+  letter-spacing: -0.005em;
+}
+
+/* Philosophy -------------------------------------------------------------- */
+
+.lede {
+  margin: 1.75rem 0 0;
+  max-width: 34rem;
+  font-size: clamp(1rem, 1.35vw, 1.12rem);
+  line-height: 1.62;
+  color: var(--ink-muted);
+}
+
+.align-right .lede {
+  margin-left: auto;
+}
+
+.column-pair {
+  margin-top: 3.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 2.25rem;
+}
+
+.column h3 {
+  margin: 0 0 0.7rem;
+  font-size: 1.02rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.column p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.66;
+  color: var(--ink-muted);
+}
+
+/* Experience chapters ------------------------------------------------------ */
+
+.chapter-meta {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chapter-role {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+}
+
+.chapter-body {
+  margin: 1.6rem 0 0;
+  max-width: 32rem;
+  font-size: 0.95rem;
+  line-height: 1.66;
+  color: var(--ink-muted);
+}
+
+.align-right .chapter-body {
+  margin-left: auto;
+}
+
+.align-right .chapter-meta {
+  align-items: flex-end;
+}
+
+/* Featured work ------------------------------------------------------------ */
+
+.project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--ink-ghost);
+}
+
+.project {
+  display: grid;
+  grid-template-columns: 4rem 1fr auto auto;
+  align-items: baseline;
+  gap: 1.5rem;
+  padding: clamp(1.4rem, 3vw, 2.4rem) 0;
+  border-bottom: 1px solid var(--ink-ghost);
+}
+
+.project__index {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+}
+
+.project__text {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 2rem;
+}
+
+.project__name {
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.project__description {
+  font-size: 16px;
+  line-height: 1.66;
+  color: var(--ink-muted);
+}
+
+.project__badge {
+  border-radius: 4px;
+  height: 32px;
+}
+
+.project__platform {
+  width: 90px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+/* Footer ------------------------------------------------------------------- */
+
+.footer-glass {
+  width: min(100%, 68rem);
+  margin: 0 auto;
+  padding: clamp(2rem, 4vw, 3.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  background: rgba(10, 10, 10, 0.52);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55);
+  will-change: opacity, transform, filter;
+}
+
+.footer-glass__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.footer-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  color: var(--ink);
+  transition:
+    background-color 260ms ease,
+    border-color 260ms ease;
+}
+
+.footer-action:hover,
+.footer-action:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.footer-action__arrow {
+  font-size: 0.9rem;
+}
+
+.footer-glass__rule {
+  margin: clamp(2.5rem, 5vw, 4rem) 0 1.5rem;
+  border: 0;
+  border-top: 1px solid var(--ink-ghost);
+}
+
+/* --------------------------------------------------------------------------
+   Loader
+   -------------------------------------------------------------------------- */
+
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  transition:
+    opacity 700ms ease,
+    visibility 0s linear 700ms;
+}
+
+.loader.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loader__mark {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  color: var(--ink);
+}
+
+.loader__status {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  color: var(--ink-faint);
+}
+
+.loader__bar {
+  width: 9rem;
+  height: 1px;
+  background: var(--ink-ghost);
+  overflow: hidden;
+}
+
+.loader__bar span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transform-origin: left center;
+  transition: transform 260ms ease;
+}
+
+/* --------------------------------------------------------------------------
+   Dev diagnostics (never rendered in production builds)
+   -------------------------------------------------------------------------- */
+
+.dev-diagnostics {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  min-width: 15rem;
+  padding: 0.75rem 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.dev-diagnostics div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.dev-diagnostics__hint {
+  margin-top: 0.5rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .story-inner {
+    width: 100%;
+  }
+
+  .align-right .story-inner {
+    text-align: left;
+  }
+
+  .align-right {
+    justify-content: flex-start;
+  }
+
+  .align-right .chapter-meta {
+    align-items: flex-start;
+  }
+
+  .align-right .chapter-body,
+  .align-right .lede {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --nav-height: 3.75rem;
+  }
+
+  .site-nav__brand .site-nav__role,
+  .site-nav__brand .site-nav__divider {
+    display: none;
+  }
+
+  .site-nav__links {
+    gap: 1.1rem;
+  }
+
+  .site-nav__links button {
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+  }
+
+  .display--lg {
+    /* Long company names must never push a horizontal scrollbar. */
+    font-size: clamp(2.6rem, 15vw, 5rem);
+  }
+
+  .project {
+    grid-template-columns: 2.5rem 1fr;
+    gap: 0.4rem 1rem;
+  }
+
+  .project__platform {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .footer-glass__top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-support {
+    gap: 0.3rem 1.25rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion
+   All copy is retained; only the motion and the 483-frame scrub are dropped.
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    animation: none;
+    opacity: 0;
+  }
+
+  .story,
+  .site-nav,
+  .loader {
+    transition-duration: 1ms;
+  }
+}
+
+.cinematic-stage[data-reduced-motion='true'] .story-section {
+  /* Collapse the cinematic scroll runway into a normal editorial page. */
+  height: auto;
+  min-height: 0;
+  padding-top: clamp(4rem, 12vh, 9rem);
+  padding-bottom: clamp(4rem, 12vh, 9rem);
+}
+
+.cinematic-stage[data-reduced-motion='true'] .story-section--hero {
+  padding-top: calc(var(--nav-height) + 4rem);
+}
+
+.cinematic-stage[data-reduced-motion='true'] .story-inner,
+.cinematic-stage[data-reduced-motion='true'] .footer-glass,
+.cinematic-stage[data-reduced-motion='true'] [data-reveal-stagger] > * {
+  /* Nothing is animated in, so nothing may start hidden. */
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
