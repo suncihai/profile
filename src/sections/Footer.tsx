@@ -1,3 +1,5 @@
+import { BriefcaseBusiness, Mail } from 'lucide-react';
+
 import { FOOTER } from '../data/content';
 
 export function Footer() {
@@ -10,9 +12,25 @@ export function Footer() {
               <span key={line}>{line}</span>
             ))}
           </h2>
-          <a target="_blank" href="mailto:suncihai@gmail.com">
-            suncihai@gmail.com
-          </a>
+          <div className="footer-contacts">
+            <a className="footer-contact" href="mailto:suncihai@gmail.com">
+              <Mail aria-hidden="true" size={18} strokeWidth={1.6} />
+              <span>suncihai@gmail.com</span>
+            </a>
+            <a
+              className="footer-contact"
+              href="https://www.linkedin.com/in/cihai-sun-5620a375/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <BriefcaseBusiness
+                aria-hidden="true"
+                size={18}
+                strokeWidth={1.6}
+              />
+              <span>LinkedIn</span>
+            </a>
+          </div>
           <button
             type="button"
             className="footer-action"

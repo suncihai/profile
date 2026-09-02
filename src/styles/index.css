@@ -593,9 +593,34 @@ button {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
   gap: 2rem;
   flex-wrap: wrap;
+}
+
+.footer-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.footer-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: fit-content;
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+  text-decoration: none;
+  transition: color 220ms ease;
+}
+
+.footer-contact svg {
+  flex: none;
+}
+
+.footer-contact:hover,
+.footer-contact:focus-visible {
+  color: var(--ink);
 }
 
 .footer-action {
