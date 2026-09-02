@@ -23,26 +23,35 @@ export function FeaturedWork() {
             {PROJECTS.map((project) => (
               <li className="project" key={project.name}>
                 <span className="project__index">{project.index}</span>
-                <div className="project__text">
-                  <span className="project__name">{project.name}</span>
-                  <span className="project__description">
-                    {project.description}
-                  </span>
+                <div className="project__content">
+                  <div className="project__text">
+                    <span className="project__name">{project.name}</span>
+                    <span className="project__description">
+                      {project.description}
+                    </span>
+                  </div>
+                  <div className="project__details">
+                    <a
+                      className="project__link"
+                      href={project.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <img
+                        src={
+                          project.badge
+                            ? project.badge
+                            : '/images/apple_badge.png'
+                        }
+                        alt="Download on the App Store"
+                        className="project__badge"
+                      />
+                    </a>
+                    <span className="project__platform">
+                      {project.platform}
+                    </span>
+                  </div>
                 </div>
-                <a
-                  href={project.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img
-                    src={
-                      project?.badge ? project.badge : '/images/apple_badge.png'
-                    }
-                    alt="Download on the App Store"
-                    className="project__badge"
-                  />
-                </a>
-                <span className="project__platform">{project.platform}</span>
               </li>
             ))}
           </ul>

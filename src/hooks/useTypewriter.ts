@@ -1,23 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 
 export interface TypewriterOptions {
-  lines: string[]
+  lines: string[];
   /** Milliseconds per character. */
-  speed?: number
+  speed?: number;
   /** Pause inserted between finished lines. */
-  linePause?: number
+  linePause?: number;
   /** Delay before the first character. */
-  startDelay?: number
+  startDelay?: number;
   /** When true the full text is shown immediately and nothing animates. */
-  disabled?: boolean
+  disabled?: boolean;
 }
 
 export interface TypewriterState {
   /** Progressively revealed text, one entry per source line. */
-  rendered: string[]
+  rendered: string[];
   /** Index of the line currently being typed, or -1 once finished. */
-  activeLine: number
-  done: boolean
+  activeLine: number;
+  done: boolean;
 }
 
 /**
@@ -35,51 +35,52 @@ export function useTypewriter({
     disabled
       ? { rendered: lines, activeLine: -1, done: true }
       : { rendered: lines.map(() => ''), activeLine: 0, done: false },
-  )
+  );
 
   useEffect(() => {
     if (disabled) {
-      setState({ rendered: lines, activeLine: -1, done: true })
-      return
+      setState({ rendered: lines, activeLine: -1, done: true });
+      return;
     }
 
-    let cancelled = false
-    const timers: Array<ReturnType<typeof setTimeout>> = []
-    const rendered = lines.map(() => '')
+    let cancelled = false;
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
+    const rendered = lines.map(() => '');
 
     const wait = (ms: number) =>
       new Promise<void>((resolve) => {
-        timers.push(setTimeout(resolve, ms))
-      })
+        timers.push(setTimeout(resolve, ms));
+      });
 
     const run = async () => {
-      await wait(startDelay)
+      setState({ rendered: [...rendered], activeLine: 0, done: false });
+      await wait(startDelay);
       for (let line = 0; line < lines.length; line += 1) {
-        if (cancelled) return
-        setState({ rendered: [...rendered], activeLine: line, done: false })
+        if (cancelled) return;
+        setState({ rendered: [...rendered], activeLine: line, done: false });
         for (let char = 0; char < lines[line].length; char += 1) {
-          if (cancelled) return
-          await wait(speed)
-          if (cancelled) return
-          rendered[line] = lines[line].slice(0, char + 1)
-          setState({ rendered: [...rendered], activeLine: line, done: false })
+          if (cancelled) return;
+          await wait(speed);
+          if (cancelled) return;
+          rendered[line] = lines[line].slice(0, char + 1);
+          setState({ rendered: [...rendered], activeLine: line, done: false });
         }
-        if (line < lines.length - 1) await wait(linePause)
+        if (line < lines.length - 1) await wait(linePause);
       }
-      if (cancelled) return
-      setState({ rendered: [...rendered], activeLine: -1, done: true })
-    }
+      if (cancelled) return;
+      setState({ rendered: [...rendered], activeLine: -1, done: true });
+    };
 
-    void run()
+    void run();
 
     return () => {
-      cancelled = true
-      for (const timer of timers) clearTimeout(timer)
-    }
+      cancelled = true;
+      for (const timer of timers) clearTimeout(timer);
+    };
     // `lines` is a stable module constant; re-running on identity change would
     // restart the animation, which must happen only once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disabled, speed, linePause, startDelay])
+  }, [disabled, speed, linePause, startDelay]);
 
-  return state
+  return state;
 }

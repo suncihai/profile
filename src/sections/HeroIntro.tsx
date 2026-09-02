@@ -1,10 +1,10 @@
-import { HERO } from '../data/content'
-import { useTypewriter } from '../hooks/useTypewriter'
+import { HERO } from '../data/content';
+import { useTypewriter } from '../hooks/useTypewriter';
 
 interface HeroIntroProps {
-  reducedMotion: boolean
+  reducedMotion: boolean;
   /** Typing starts only once the local bootstrap has revealed the stage. */
-  started: boolean
+  started: boolean;
 }
 
 export function HeroIntro({ reducedMotion, started }: HeroIntroProps) {
@@ -14,14 +14,18 @@ export function HeroIntro({ reducedMotion, started }: HeroIntroProps) {
     linePause: 420,
     startDelay: 520,
     disabled: reducedMotion || !started,
-  })
+  });
 
   return (
     <section className="story-section story-section--hero" id="hero">
       <div className="story-inner" data-reveal="exit">
         <p className="meta meta--eyebrow">{HERO.eyebrow}</p>
 
-        <h1 className="hero-headline">
+        <h1
+          className={`hero-headline${
+            done && started && !reducedMotion ? ' is-breathing' : ''
+          }`}
+        >
           {HERO.typedLines.map((line, index) => (
             <span className="hero-headline__line" key={line}>
               {/* The full line is kept in the accessibility tree so screen readers
@@ -29,7 +33,9 @@ export function HeroIntro({ reducedMotion, started }: HeroIntroProps) {
               <span className="visually-hidden">{line}</span>
               <span aria-hidden="true">
                 {rendered[index] ?? ''}
-                {!done && activeLine === index ? <span className="caret" /> : null}
+                {!done && activeLine === index ? (
+                  <span className="caret" />
+                ) : null}
               </span>
             </span>
           ))}
@@ -44,5 +50,5 @@ export function HeroIntro({ reducedMotion, started }: HeroIntroProps) {
         <p className="meta meta--hint">{HERO.scrollHint}</p>
       </div>
     </section>
-  )
+  );
 }

@@ -367,6 +367,27 @@ button {
   min-height: 1.08em;
 }
 
+.hero-headline.is-breathing {
+  animation: headline-breathe 1.2s ease-in-out 500ms infinite alternate;
+}
+
+@keyframes headline-breathe {
+  from {
+    opacity: 1;
+    text-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.72),
+      0 10px 28px rgba(0, 0, 0, 0.58),
+      0 0 18px rgba(255, 255, 255, 0.2);
+  }
+  to {
+    opacity: 0.48;
+    text-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.5),
+      0 6px 18px rgba(0, 0, 0, 0.36),
+      0 0 8px rgba(255, 255, 255, 0.08);
+  }
+}
+
 .caret {
   display: inline-block;
   width: 0.06em;
@@ -479,8 +500,7 @@ button {
 }
 
 .project {
-  display: grid;
-  grid-template-columns: 4rem 1fr auto auto;
+  display: flex;
   align-items: baseline;
   gap: 1.5rem;
   padding: clamp(1.4rem, 3vw, 2.4rem) 0;
@@ -488,15 +508,25 @@ button {
 }
 
 .project__index {
+  flex: 0 0 4rem;
   font-family: var(--font-mono);
   font-size: 0.66rem;
   letter-spacing: 0.2em;
   color: var(--ink-faint);
 }
 
-.project__text {
+.project__content {
+  min-width: 0;
+  flex: 1;
   display: flex;
-  flex-direction: row;
+  align-items: baseline;
+  gap: 1.5rem;
+}
+
+.project__text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
   align-items: baseline;
   gap: 2rem;
 }
@@ -509,14 +539,29 @@ button {
 }
 
 .project__description {
+  flex: 1;
   font-size: 16px;
   line-height: 1.66;
   color: var(--ink-muted);
 }
 
+.project__details {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.project__link {
+  display: inline-flex;
+  width: fit-content;
+}
+
 .project__badge {
+  display: block;
   border-radius: 4px;
   height: 32px;
+  width: auto;
 }
 
 .project__platform {
@@ -727,12 +772,30 @@ button {
   }
 
   .project {
-    grid-template-columns: 2.5rem 1fr;
-    gap: 0.4rem 1rem;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .project__index {
+    flex-basis: 2.5rem;
+    padding-top: 0.45rem;
+  }
+
+  .project__content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .project__text {
+    gap: 1rem;
+  }
+
+  .project__details {
+    justify-content: space-between;
   }
 
   .project__platform {
-    grid-column: 2;
     text-align: left;
   }
 
@@ -752,6 +815,10 @@ button {
    -------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
+  .hero-headline.is-breathing {
+    animation: none;
+  }
+
   .caret {
     animation: none;
     opacity: 0;
