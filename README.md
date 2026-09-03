@@ -13,7 +13,11 @@ no backend, no database, no Three.js, and no `<video>` scrubbing.
 ```
 CinematicStage (src/App.tsx)
 ├── HeroCanvasLayer        fixed, z-0   — the streamed 483-frame sequence
-├── FutureInteractiveLayer fixed, z-1   — reserved for Phase 2, empty and inert
+├── ThreeInteractionLayer  fixed, z-1   — Phase 2A: transparent WebGL floating glass
+│   ├── GlassSystem                     — 2-3 intact shards, spawn / float / break / respawn
+│   ├── ShurikenSystem                  — one pooled projectile, ~220-350ms flight
+│   ├── FragmentSystem                  — pooled shatter splinters + impact flash
+│   └── PointerInteraction              — window-level pointer capture + raycasting
 ├── EditorialStoryLayer            z-2  — every headline, chapter and project (real DOM)
 └── Navigation + Loader            z-20 — chrome
 ```
@@ -195,7 +199,13 @@ With `prefers-reduced-motion: reduce`:
 - Stage B never touches R2 (measured: **5 requests, 0 remote**);
 - the 900vh runway collapses to a normal editorial page (~4.8vh);
 - every reveal animation is disabled and all content is forced visible — **no information is
-  lost**.
+  lost**;
+- the floating glass holds nearly still — drift *and* out-of-plane tilt are both scaled to
+  ~14%, measured at 1–4px of movement over 3s — while the shuriken/shatter interaction still
+  works, with a shorter throw and a trimmed burst. The layer is `aria-hidden` and decorative;
+  nothing is only expressed there;
+- the first-visit hint still appears (a short fade, no slide) and the shatter sound still
+  plays: neither is motion.
 
 ---
 
@@ -211,8 +221,11 @@ npm run lint
 
 **Dev-only diagnostics.** Press <kbd>d</kbd> for a loader inspector, or call
 `window.__heroDebug()` in the console for current/target frame, cache size, in-flight count,
-velocity, lookahead, DPR and fit mode. Both are stripped from production builds (verified:
-`window.__heroDebug` is `undefined` in `dist`). There is no per-scroll logging.
+velocity, lookahead, DPR and fit mode. `window.__glassDebug()` reports the Phase 2A layer:
+per-shard state and screen position, loop/quiet/hidden flags, renderer DPR, active fragment
+count, and live geometry / texture / program / scene-child counts for leak checking. All are
+stripped from production builds (verified: both are `undefined` in `dist`). There is no
+per-scroll logging.
 
 ---
 
@@ -244,8 +257,61 @@ assuming 16:9, and every URL flows through `getHeroFrameUrl`.
 
 ---
 
-## Phase 2 boundary
+## Phase 2: floating glass interaction
 
-`FutureInteractiveLayer` (`#future-interactive-layer`) is mounted, fixed, pointer-transparent
-and empty. Camera gesture recognition, the target, and the shuriken interaction belong there,
-above the canvas and below the copy. **None of it is implemented in Phase 1.**
+`ThreeInteractionLayer` (`#future-interactive-layer`) mounts a transparent WebGL canvas
+between the frame sequence and the copy. Two or three irregular glass shards drift slowly in
+the scene; click one and a shuriken flies in from off screen, and on impact the shard bursts
+into pooled splinters and a replacement fades in elsewhere 1–2 seconds later.
+
+| File | Responsibility |
+| --- | --- |
+| `src/interaction/ThreeInteractionLayer.tsx` | Mounts and disposes the runtime; the only React in the feature |
+| `src/interaction/scene/InteractionRuntime.ts` | The single rAF loop, resize, visibility, and system wiring |
+| `src/interaction/scene/createInteractionScene.ts` | Renderer, orthographic camera, lights, environment |
+| `src/interaction/scene/GlassSystem.ts` | Shard slots, lifecycle, drift, spawn zones, hit picking |
+| `src/interaction/scene/ShurikenSystem.ts` | One pooled projectile: trajectory, spin, impact |
+| `src/interaction/scene/FragmentSystem.ts` | Pooled splinters, hand-integrated motion, impact flash |
+| `src/interaction/scene/PointerInteraction.ts` | Window pointer capture, UI exclusion, ray construction |
+| `src/interaction/audio/ShatterAudio.ts` | Fixed pool of six glass-break voices, primed from a gesture |
+| `src/interaction/config.ts` | Every tunable number: band weights, measured spawn zones, timings |
+| `src/components/GlassHint.tsx` | One-time first-visit hint (`profile_glass_hint_seen`) |
+
+The rules this layer lives by:
+
+- **It never captures input.** The canvas is `pointer-events: none`. Pointer events are read
+  at the window and ignored whenever the target is inside `a`, `button`, `input`, `textarea`,
+  `select`, `[role="button"]` or `[data-no-glass-interaction]`, so the site's own UI always wins.
+- **It never touches Phase 1.** No import from the frame loader, the playhead or the GSAP
+  timeline. The only coupling to the scroll experience is a passive `window.scrollY` read for
+  a small parallax offset.
+- **It costs nothing when idle or invisible.** One rAF loop, pre-baked geometry, pooled
+  objects, DPR capped at 1.5, and the loop stops when the tab is hidden or when the frosted
+  footer fills the viewport (after the layer has faded out, never while glass is visible).
+- **Placement is balanced by construction, not by luck.** Shards are apportioned across
+  left / centre / right bands by largest-remainder over `BAND_WEIGHTS`, and a respawning
+  shard always claims the band with the largest shortfall - so the live mix converges on the
+  configured balance whatever order shards are broken in. Randomness only breaks ties and
+  chooses the anchor within a band.
+- **Nothing is fetched or played until you ask.** No audio is requested at page load. The
+  six-voice pool is created on the first hover over a shard (or the first tap), and only ever
+  plays on an impact, which is always downstream of the click that threw the shuriken.
+- **It is progressive enhancement.** If a WebGL2 context cannot be created, the layer is
+  skipped silently and Phase 1 is untouched. Three.js ships in its own lazy chunk, requested
+  only after the cinematic bootstrap has revealed the stage.
+
+### Live counts and timings
+
+| | desktop | tablet | phone |
+| --- | --- | --- | --- |
+| intact shards | 5 | 4 | 2 |
+| band split (L/C/R) | 1 / 2 / 2 | 1 / 1 / 2 | 0 / 1 / 1 |
+
+Shuriken flight is 340-500ms (measured 349-518ms end to end, mean ~423ms) at 4.5 revolutions,
+so the spin reads at roughly 10 rev/s. Shatter is 9-14 pooled splinters over 0.9-1.4s;
+respawn is 1-2s after impact with a 300-700ms fade-in.
+
+## Phase 2C boundary
+
+Camera gesture recognition, hand tracking, chapter-aware glass placement, and
+glass-to-navigation behaviour mount into the same layer. **None of it is implemented yet.**
