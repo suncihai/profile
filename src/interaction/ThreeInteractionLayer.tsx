@@ -3,6 +3,12 @@ import { InteractionRuntime } from './scene/InteractionRuntime'
 
 export interface ThreeInteractionLayerProps {
   reducedMotion: boolean
+  /**
+   * Reports whether the WebGL layer actually came up. Lifecycle-level only -
+   * fired once per mount, never per frame - so callers can gate UI that would
+   * otherwise promise an interaction this browser cannot provide.
+   */
+  onActiveChange?: (active: boolean) => void
 }
 
 /**
@@ -21,8 +27,15 @@ export interface ThreeInteractionLayerProps {
  * competes with the frame loader for bandwidth or main-thread time during the
  * first paint.
  */
-export function ThreeInteractionLayer({ reducedMotion }: ThreeInteractionLayerProps) {
+export function ThreeInteractionLayer({
+  reducedMotion,
+  onActiveChange,
+}: ThreeInteractionLayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Held in a ref so a parent re-render can never tear the runtime down.
+  const onActiveChangeRef = useRef(onActiveChange)
+  onActiveChangeRef.current = onActiveChange
 
   useEffect(() => {
     const container = containerRef.current
@@ -44,8 +57,11 @@ export function ThreeInteractionLayer({ reducedMotion }: ThreeInteractionLayerPr
       if (import.meta.env.DEV) {
         console.warn('[glass] Three.js interaction layer unavailable', error)
       }
+      onActiveChangeRef.current?.(false)
       return
     }
+
+    onActiveChangeRef.current?.(true)
 
     if (import.meta.env.DEV) {
       ;(window as unknown as Record<string, unknown>).__glassDebug = () => runtime.debug()
@@ -53,6 +69,7 @@ export function ThreeInteractionLayer({ reducedMotion }: ThreeInteractionLayerPr
 
     return () => {
       runtime.dispose()
+      onActiveChangeRef.current?.(false)
       if (import.meta.env.DEV) {
         delete (window as unknown as Record<string, unknown>).__glassDebug
       }

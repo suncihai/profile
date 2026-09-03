@@ -7,6 +7,7 @@ import { TOTAL_FRAMES } from './components/HeroCanvas/frameSource'
 import { Loader } from './components/Loader'
 import { Navigation } from './components/Navigation'
 import { DevDiagnostics } from './components/DevDiagnostics'
+import { GlassHint } from './components/GlassHint'
 import { HeroIntro } from './sections/HeroIntro'
 import { Philosophy } from './sections/Philosophy'
 import { Experience } from './sections/Experience'
@@ -37,6 +38,7 @@ const ThreeInteractionLayer = lazy(async () => ({
  *   3. EditorialStoryLayer      - all real DOM copy; no typography is ever painted
  *                                 into the canvas
  *   4. Navigation + Loader      - chrome
+ *   5. GlassHint                - one-time frosted first-visit hint
  */
 export default function App() {
   const reducedMotion = usePrefersReducedMotion()
@@ -49,6 +51,9 @@ export default function App() {
 
   const [bootstrapLoaded, setBootstrapLoaded] = useState(0)
   const [ready, setReady] = useState(false)
+  // Whether the Phase 2 glass layer actually came up. Lifecycle only - the
+  // interaction itself never touches React state.
+  const [glassActive, setGlassActive] = useState(false)
 
   const handleReady = useCallback(() => setReady(true), [])
 
@@ -93,7 +98,12 @@ export default function App() {
         (camera / gesture recognition) lands in the same slot.
       */}
       <Suspense fallback={null}>
-        {ready ? <ThreeInteractionLayer reducedMotion={reducedMotion} /> : null}
+        {ready ? (
+          <ThreeInteractionLayer
+            reducedMotion={reducedMotion}
+            onActiveChange={setGlassActive}
+          />
+        ) : null}
       </Suspense>
 
       <Navigation visible={ready} />
@@ -105,6 +115,8 @@ export default function App() {
         <FeaturedWork />
         <Footer />
       </main>
+
+      <GlassHint active={ready && glassActive} />
 
       <Loader loaded={bootstrapLoaded} hidden={ready} />
       {import.meta.env.DEV ? <DevDiagnostics /> : null}

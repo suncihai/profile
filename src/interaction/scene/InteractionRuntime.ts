@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { PARALLAX_RANGE, resolveTuning } from '../config'
 import type { Tuning } from '../config'
+import { ShatterAudio } from '../audio/ShatterAudio'
 import { FragmentSystem } from './FragmentSystem'
 import { GlassSystem } from './GlassSystem'
 import { InteractionScene } from './createInteractionScene'
@@ -43,6 +44,7 @@ export class InteractionRuntime {
   private readonly shuriken: ShurikenSystem
   private readonly fragments: FragmentSystem
   private readonly pointer: PointerInteraction
+  private readonly audio = new ShatterAudio()
 
   private readonly resizeObserver: ResizeObserver
   private readonly quietObserver: IntersectionObserver | null = null
@@ -222,12 +224,19 @@ export class InteractionRuntime {
       this.glass.setHover(null)
       return
     }
-    this.glass.setHover(this.glass.pick(hover))
+    const slotIndex = this.glass.pick(hover)
+    // Hovering a shard is the earliest strong signal that a throw is coming, so
+    // it is where the sound pool gets warmed - well before the first impact.
+    if (slotIndex !== null) this.audio.prime()
+    this.glass.setHover(slotIndex)
   }
 
   private handlePick(): void {
     const pick = this.pointer.takePick()
     if (pick === null) return
+    // Touch has no hover, so a tap is also a priming opportunity. `prime` is a
+    // no-op after the first call.
+    this.audio.prime()
     // One shuriken in the air at a time. Extra clicks are simply ignored, which
     // is both the simplest rule and the one that cannot spam projectiles.
     if (this.shuriken.busy) return
@@ -247,6 +256,9 @@ export class InteractionRuntime {
     this.fragments.flash(this.impactPoint.x, this.impactPoint.y)
     this.fragments.burst(this.impactPoint.x, this.impactPoint.y)
     this.glass.shatter(slotIndex, now)
+    // Always downstream of the click that threw the shuriken, so the document
+    // already has user activation and playback is allowed.
+    this.audio.play()
   }
 
   /* -- diagnostics -------------------------------------------------------- */
@@ -260,11 +272,13 @@ export class InteractionRuntime {
       shards: this.glass.report.map((shard) => ({
         index: shard.index,
         state: shard.state,
+        band: shard.band,
         screenX: Math.round(((shard.x / halfW) * 0.5 + 0.5) * this.width),
         screenY: Math.round((0.5 - (shard.y / halfH) * 0.5) * this.height),
         radiusPx: Math.round((shard.reach / halfH) * 0.5 * this.height),
       })),
       viewport: { width: this.width, height: this.height },
+      bandTargets: this.glass.bandTargets,
       running: this.running,
       quiet: this.quiet,
       hidden: this.hidden,
@@ -273,6 +287,7 @@ export class InteractionRuntime {
       glassStates: this.glass.census,
       activeFragments: this.fragments.activeCount,
       shurikenBusy: this.shuriken.busy,
+      audioVoices: this.audio.voiceCount,
       sceneChildren: this.view.scene.children.length,
       renderCalls: this.view.renderer.info.render.calls,
       geometries: this.view.renderer.info.memory.geometries,
@@ -298,6 +313,7 @@ export class InteractionRuntime {
 
     this.pointer.dispose()
     this.shuriken.cancel()
+    this.audio.dispose()
 
     this.view.scene.remove(this.glass.root, this.fragments.root, this.shuriken.root)
     this.glass.dispose()

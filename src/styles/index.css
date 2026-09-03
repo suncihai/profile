@@ -133,6 +133,83 @@ button {
   opacity: 0;
 }
 
+/* --------------------------------------------------------------------------
+   First-visit glass hint
+   A quiet frosted panel, not a modal. The layer is inert; only the panel takes
+   pointer events, so scrolling, the nav and glass picking are all unaffected.
+   -------------------------------------------------------------------------- */
+
+.glass-hint-layer {
+  position: fixed;
+  inset: auto var(--gutter) clamp(1.5rem, 4vh, 3rem) auto;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.glass-hint {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: min(24rem, calc(100vw - 2 * var(--gutter)));
+  padding: 0.85rem 0.95rem 0.85rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  background: rgba(10, 10, 10, 0.52);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 420ms ease,
+    transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.glass-hint.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* A single cool shard of light, echoing the glass rim in the scene. */
+.glass-hint__mark {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  background: rgba(220, 236, 255, 0.9);
+  box-shadow: 0 0 12px rgba(180, 214, 255, 0.75);
+  clip-path: polygon(50% 0%, 100% 38%, 72% 100%, 8% 74%);
+}
+
+.glass-hint__text {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.glass-hint__action {
+  flex: none;
+  align-self: stretch;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+  transition:
+    background-color 260ms ease,
+    border-color 260ms ease;
+}
+
+.glass-hint__action:hover,
+.glass-hint__action:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
 .story {
   position: relative;
   z-index: 2;
@@ -872,6 +949,15 @@ button {
   .loader,
   .three-interaction-canvas {
     transition-duration: 1ms;
+  }
+
+  .glass-hint {
+    transform: none;
+    transition-duration: 120ms;
+  }
+
+  .glass-hint.is-visible {
+    transform: none;
   }
 }
 

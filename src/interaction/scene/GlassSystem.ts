@@ -14,12 +14,14 @@ import {
   MAX_GLASS_SLOTS,
   MIN_ZONE_SEPARATION,
   PARALLAX_RANGE,
+  PLACEMENT_BANDS,
   PORTRAIT_ASPECT,
   SPAWN_ZONES,
   Z_GLASS_MAX,
   Z_GLASS_MIN,
+  resolveBandQuota,
 } from '../config'
-import type { Tuning } from '../config'
+import type { PlacementBand, Tuning } from '../config'
 import { randInt, randRange } from '../rng'
 import { createGlassVariants } from '../geometry/createGlassGeometry'
 import type { GlassVariant } from '../geometry/createGlassGeometry'
@@ -98,6 +100,14 @@ export class GlassSystem {
   private readonly intersections: THREE.Intersection[] = []
 
   private tuning: Tuning
+  /** Target shards per band for the current count. Recomputed on tuning change. */
+  private quota: Record<PlacementBand, number>
+  /** Reused per respawn so placement never allocates. */
+  private readonly bandCounts: Record<PlacementBand, number> = { left: 0, center: 0, right: 0 }
+  private readonly bandPool: PlacementBand[] = []
+  private readonly zonePool: number[] = []
+  private readonly freePool: number[] = []
+
   private halfWidth: number
   private halfHeight: number
   private parallax = 0
@@ -105,6 +115,7 @@ export class GlassSystem {
 
   constructor(tuning: Tuning, halfWidth: number, halfHeight: number) {
     this.tuning = tuning
+    this.quota = resolveBandQuota(tuning.glassCount)
     this.halfWidth = halfWidth
     this.halfHeight = halfHeight
 
@@ -187,23 +198,86 @@ export class GlassSystem {
     return true
   }
 
-  private pickZone(slot: GlassSlot): number {
-    const pool: number[] = []
+  private bandOf(slot: GlassSlot): PlacementBand | null {
+    return slot.zone >= 0 ? SPAWN_ZONES[slot.zone].band : null
+  }
+
+  /** Live shards per band, ignoring the slot that is about to be placed. */
+  private countBands(exclude: GlassSlot): void {
+    this.bandCounts.left = 0
+    this.bandCounts.center = 0
+    this.bandCounts.right = 0
+    for (const slot of this.slots) {
+      if (slot === exclude || slot.parked) continue
+      if (slot.state === 'cooldown' || slot.zone < 0) continue
+      this.bandCounts[SPAWN_ZONES[slot.zone].band] += 1
+    }
+  }
+
+  /**
+   * Which third of the composition this shard should claim.
+   *
+   * The band with the largest shortfall against its quota always wins, so the
+   * live set converges on the configured balance no matter what order shards are
+   * broken in - the balance is a property of the configuration, not of the dice.
+   * Randomness only breaks ties, and among tied bands one the shard did not just
+   * occupy is preferred, so respawning moves it somewhere new.
+   *
+   * Returns null when every band already sits at quota, which lets the caller
+   * fall back to the full zone set rather than refusing to place a shard.
+   */
+  private pickBand(slot: GlassSlot): PlacementBand | null {
+    this.countBands(slot)
+
+    let best = 0
+    for (const band of PLACEMENT_BANDS) {
+      best = Math.max(best, this.quota[band] - this.bandCounts[band])
+    }
+    if (best <= 0) return null
+
+    this.bandPool.length = 0
+    const lastBand = this.bandOf(slot)
+    for (const band of PLACEMENT_BANDS) {
+      if (this.quota[band] - this.bandCounts[band] !== best) continue
+      this.bandPool.push(band)
+    }
+    // Prefer a band this shard was not already in, but never at the cost of balance.
+    const moved = this.bandPool.filter((band) => band !== lastBand)
+    const pool = moved.length > 0 ? moved : this.bandPool
+    return pool[randInt(0, pool.length - 1)]
+  }
+
+  /** Candidate zone indices, filtered by band, viewport and last-used. */
+  private collectZones(slot: GlassSlot, band: PlacementBand | null): number[] {
+    this.zonePool.length = 0
     for (let i = 0; i < SPAWN_ZONES.length; i += 1) {
-      if (this.tuning.compactZonesOnly && !SPAWN_ZONES[i].compact) continue
+      const zone = SPAWN_ZONES[i]
+      if (band !== null && zone.band !== band) continue
+      if (this.tuning.compactZonesOnly && !zone.compact) continue
       // Never reuse the zone this slot just occupied.
       if (i === slot.zone) continue
-      pool.push(i)
+      this.zonePool.push(i)
     }
+    return this.zonePool
+  }
+
+  private pickZone(slot: GlassSlot): number {
+    const band = this.pickBand(slot)
+
+    let pool = this.collectZones(slot, band)
+    // A band can be empty on a narrow viewport, or already fully occupied;
+    // widening beats leaving a slot unplaced.
+    if (pool.length === 0 && band !== null) pool = this.collectZones(slot, null)
     if (pool.length === 0) return slot.zone >= 0 ? slot.zone : 0
 
-    // A handful of tries against the separation rule, then take whatever is left
-    // rather than looping forever on a crowded compact viewport.
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      const zone = pool[randInt(0, pool.length - 1)]
-      if (this.zoneIsFree(zone, slot)) return zone
+    // Evaluate the whole candidate set rather than sampling blindly, then pick
+    // at random among the ones that clear the separation rule.
+    this.freePool.length = 0
+    for (const zone of pool) {
+      if (this.zoneIsFree(zone, slot)) this.freePool.push(zone)
     }
-    return pool[randInt(0, pool.length - 1)]
+    const choices = this.freePool.length > 0 ? this.freePool : pool
+    return choices[randInt(0, choices.length - 1)]
   }
 
   /** Give a slot a fresh silhouette, zone, drift signature and fade-in. */
@@ -314,6 +388,7 @@ export class GlassSystem {
 
   applyTuning(tuning: Tuning): void {
     this.tuning = tuning
+    this.quota = resolveBandQuota(tuning.glassCount)
     for (const slot of this.slots) {
       const live = slot.index < tuning.glassCount
       if (!live && !slot.parked) {
@@ -375,8 +450,14 @@ export class GlassSystem {
       slot.group.position.x = slot.baseX + driftX
       slot.group.position.y = slot.baseY + floatY + this.parallax
       slot.group.rotation.z += slot.rotationSpeed * motion * deltaSeconds
-      slot.group.rotation.x = Math.sin(time * slot.tiltSpeed + slot.phase * 0.6) * slot.tiltX
-      slot.group.rotation.y = Math.cos(time * slot.tiltSpeed * 0.8 + slot.phase) * slot.tiltY
+      // Tilt is scaled by `motion` too: it is the most *visible* movement a
+      // shard makes, since the facets swing through the highlight, so leaving it
+      // unscaled would keep shards glinting for reduced-motion visitors even
+      // while their centres held still.
+      slot.group.rotation.x =
+        Math.sin(time * slot.tiltSpeed + slot.phase * 0.6) * slot.tiltX * motion
+      slot.group.rotation.y =
+        Math.cos(time * slot.tiltSpeed * 0.8 + slot.phase) * slot.tiltY * motion
 
       const gain = 1 + slot.hover * GLASS_HOVER_GAIN
       slot.surface.opacity = GLASS_BASE_OPACITY * slot.fade * gain
@@ -449,15 +530,28 @@ export class GlassSystem {
     if (slot !== undefined && slot.state === 'targeted') slot.state = 'floating'
   }
 
-  /** Dev-only: world position, extent and state of every slot, for diagnostics. */
-  get report(): { index: number; state: GlassState; x: number; y: number; reach: number }[] {
+  /** Dev-only: world position, extent, band and state of every slot. */
+  get report(): {
+    index: number
+    state: GlassState
+    band: PlacementBand | null
+    x: number
+    y: number
+    reach: number
+  }[] {
     return this.slots.map((slot) => ({
       index: slot.index,
       state: slot.state,
+      band: this.bandOf(slot),
       x: slot.group.position.x,
       y: slot.group.position.y,
       reach: this.reachOf(slot),
     }))
+  }
+
+  /** Dev-only: the band balance the placement system is currently targeting. */
+  get bandTargets(): Record<PlacementBand, number> {
+    return { ...this.quota }
   }
 
   /** Dev-only census, used to prove nothing leaks across many shatters. */

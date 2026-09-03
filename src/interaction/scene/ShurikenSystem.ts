@@ -1,5 +1,13 @@
 import * as THREE from 'three'
-import { FLIGHT_BOW, FLIGHT_MS, FLIGHT_REVOLUTIONS, SHURIKEN_SCALE, Z_SHURIKEN } from '../config'
+import {
+  FLIGHT_BASE_MS,
+  FLIGHT_BOW,
+  FLIGHT_MS,
+  FLIGHT_PER_UNIT_MS,
+  FLIGHT_REVOLUTIONS,
+  SHURIKEN_SCALE,
+  Z_SHURIKEN,
+} from '../config'
 import type { Tuning } from '../config'
 import {
   createShurikenGeometry,
@@ -101,7 +109,7 @@ export class ShurikenSystem {
     this.control.x += (-dy / (distance || 1)) * bow
     this.control.y += (dx / (distance || 1)) * bow
 
-    const raw = 180 + distance * 16
+    const raw = FLIGHT_BASE_MS + distance * FLIGHT_PER_UNIT_MS
     this.duration =
       (Math.min(FLIGHT_MS[1], Math.max(FLIGHT_MS[0], raw)) * this.tuning.flightScale) / 1000
 
