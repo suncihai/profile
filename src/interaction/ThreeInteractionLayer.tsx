@@ -1,14 +1,14 @@
-import { useEffect, useRef } from 'react'
-import { InteractionRuntime } from './scene/InteractionRuntime'
+import { useEffect, useRef, useState } from 'react';
+import { InteractionRuntime } from './scene/InteractionRuntime';
 
 export interface ThreeInteractionLayerProps {
-  reducedMotion: boolean
+  reducedMotion: boolean;
   /**
    * Reports whether the WebGL layer actually came up. Lifecycle-level only -
    * fired once per mount, never per frame - so callers can gate UI that would
    * otherwise promise an interaction this browser cannot provide.
    */
-  onActiveChange?: (active: boolean) => void
+  onActiveChange?: (active: boolean) => void;
 }
 
 /**
@@ -31,50 +31,72 @@ export function ThreeInteractionLayer({
   reducedMotion,
   onActiveChange,
 }: ThreeInteractionLayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const [hoveringGlass, setHoveringGlass] = useState(false);
 
   // Held in a ref so a parent re-render can never tear the runtime down.
-  const onActiveChangeRef = useRef(onActiveChange)
-  onActiveChangeRef.current = onActiveChange
+  const onActiveChangeRef = useRef(onActiveChange);
+  onActiveChangeRef.current = onActiveChange;
 
   useEffect(() => {
-    const container = containerRef.current
-    if (container === null) return
+    const moveCursor = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || cursorRef.current === null) return;
+      cursorRef.current.style.transform = `translate3d(${event.clientX}px, ${event.clientY}px, 0)`;
+    };
 
-    let runtime: InteractionRuntime
+    window.addEventListener('pointermove', moveCursor, { passive: true });
+    return () => window.removeEventListener('pointermove', moveCursor);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle(
+      'is-hovering-glass',
+      hoveringGlass,
+    );
+    return () => document.documentElement.classList.remove('is-hovering-glass');
+  }, [hoveringGlass]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container === null) return;
+
+    let runtime: InteractionRuntime;
     try {
       runtime = new InteractionRuntime({
         container,
         reducedMotion,
+        onHoverChange: setHoveringGlass,
         // The frosted footer means the overlay is no longer visually relevant.
         // Queried by class rather than wired through props to keep this layer
         // decoupled from the Phase 1 section components.
         quietZone: document.querySelector('.story-section--footer'),
-      })
+      });
     } catch (error) {
       // Progressive enhancement: no WebGL, no glass, and the Phase 1 site is
       // completely untouched.
       if (import.meta.env.DEV) {
-        console.warn('[glass] Three.js interaction layer unavailable', error)
+        console.warn('[glass] Three.js interaction layer unavailable', error);
       }
-      onActiveChangeRef.current?.(false)
-      return
+      onActiveChangeRef.current?.(false);
+      return;
     }
 
-    onActiveChangeRef.current?.(true)
+    onActiveChangeRef.current?.(true);
 
     if (import.meta.env.DEV) {
-      ;(window as unknown as Record<string, unknown>).__glassDebug = () => runtime.debug()
+      (window as unknown as Record<string, unknown>).__glassDebug = () =>
+        runtime.debug();
     }
 
     return () => {
-      runtime.dispose()
-      onActiveChangeRef.current?.(false)
+      runtime.dispose();
+      onActiveChangeRef.current?.(false);
       if (import.meta.env.DEV) {
-        delete (window as unknown as Record<string, unknown>).__glassDebug
+        delete (window as unknown as Record<string, unknown>).__glassDebug;
       }
-    }
-  }, [reducedMotion])
+    };
+  }, [reducedMotion]);
 
   return (
     <div
@@ -82,6 +104,16 @@ export function ThreeInteractionLayer({
       id="future-interactive-layer"
       ref={containerRef}
       aria-hidden="true"
-    />
-  )
+    >
+      <div
+        className={`shuriken-cursor${hoveringGlass ? ' is-visible' : ''}`}
+        ref={cursorRef}
+      >
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M24 3C26 11 28 16 32 19L45 24C37 26 32 28 29 32L24 45C22 37 20 32 16 29L3 24C11 22 16 20 19 16Z" />
+          <circle cx="24" cy="24" r="3.2" />
+        </svg>
+      </div>
+    </div>
+  );
 }
