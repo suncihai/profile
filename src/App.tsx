@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { HeroCanvas } from './components/HeroCanvas/HeroCanvas'
@@ -18,11 +18,22 @@ import { useStoryReveal } from './hooks/useStoryReveal'
 gsap.registerPlugin(ScrollTrigger)
 
 /**
+ * Phase 2A ships Three.js in its own chunk, requested only after the cinematic
+ * bootstrap has revealed the stage. The first paint - and the 20-frame local
+ * bootstrap it depends on - is byte-for-byte unaffected.
+ */
+const ThreeInteractionLayer = lazy(async () => ({
+  default: (await import('./interaction/ThreeInteractionLayer')).ThreeInteractionLayer,
+}))
+
+/**
  * CinematicStage.
  *
  * Layering, back to front:
  *   1. HeroCanvasLayer          - the streamed frame sequence (fixed, decorative)
- *   2. FutureInteractiveLayer   - reserved for Phase 2 (camera / target / shuriken)
+ *   2. ThreeInteractionLayer    - Phase 2A: transparent WebGL floating glass.
+ *                                 pointer-events: none; picks are raycast from
+ *                                 window-level pointer events
  *   3. EditorialStoryLayer      - all real DOM copy; no typography is ever painted
  *                                 into the canvas
  *   4. Navigation + Loader      - chrome
@@ -77,12 +88,13 @@ export default function App() {
       />
 
       {/*
-        FutureInteractiveLayer — Phase 2 boundary.
-        Camera gesture recognition, the target and the shuriken interaction mount
-        here, above the cinematic canvas and below the editorial copy. Intentionally
-        empty and pointer-transparent in Phase 1.
+        Phase 2A interaction layer. Sits above the cinematic canvas and below the
+        editorial copy, and mounts only once the stage is revealed. Phase 2B
+        (camera / gesture recognition) lands in the same slot.
       */}
-      <div className="future-interactive-layer" id="future-interactive-layer" aria-hidden="true" />
+      <Suspense fallback={null}>
+        {ready ? <ThreeInteractionLayer reducedMotion={reducedMotion} /> : null}
+      </Suspense>
 
       <Navigation visible={ready} />
 
