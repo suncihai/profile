@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 /** Long enough for the hero reveal and the typewriter to have started. */
 const APPEAR_DELAY_MS = 900;
-const AUTO_DISMISS_MS = 4600;
+const AUTO_DISMISS_MS = 6000;
 /** Must match the CSS transition duration below. */
 const FADE_MS = 420;
 
